@@ -1,0 +1,32 @@
+services:
+  dispatch-postgres:
+    image: postgres:16-alpine
+    container_name: dispatch-postgres
+    environment:
+      POSTGRES_USER: dispatch
+      POSTGRES_PASSWORD: dispatch
+      POSTGRES_DB: dispatch
+    ports:
+      # Host port 5437 — avoids clashing with order-service (5436) and other services.
+      - "5437:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dispatch"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  dispatch-redis:
+    image: redis:7-alpine
+    container_name: dispatch-redis
+    # Host port 6380 — avoids clashing with the platform logistics-redis on 6379.
+    # .env.example keeps REDIS_URL=redis://localhost:6379 since the platform stack
+    # (logistics-infrastructure/compose/docker-compose.yml) exposes 6379 and is the
+    # preferred source in a full local run. Use this compose service in isolation or
+    # when the platform stack is not up; in that case, update REDIS_URL to :6380.
+    ports:
+      - "6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
