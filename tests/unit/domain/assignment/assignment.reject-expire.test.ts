@@ -47,4 +47,15 @@ describe("Assignment.expireOffer", () => {
     expect(a.expireOffer(1, EXP)).toBe(false);
     expect(a.status).toBe(AssignmentStatus.ASSIGNED);
   });
+  it("is a no-op for a stale attemptNo after a re-offer interleaving", () => {
+    const a = a0();
+    a.offerTo("att-1", DriverId.of(D1), NOW, EXP);
+    a.rejectByDriver(DriverId.of(D1), EXP);
+    a.offerTo("att-2", DriverId.of(D2), NOW, EXP);
+
+    expect(a.expireOffer(1, EXP)).toBe(false);
+    expect(a.status).toBe(AssignmentStatus.OFFERED);
+    expect(a.currentAttempt()!.attemptNo).toBe(2);
+    expect(a.currentAttempt()!.outcome).toBe(OfferOutcome.OFFERED);
+  });
 });

@@ -1,7 +1,9 @@
 import { Assignment } from "@/domain/assignment/assignment.js";
 import { AssignmentStatus } from "@/domain/assignment/assignment-status.js";
+import { OfferOutcome } from "@/domain/assignment/offer-outcome.js";
 import { DriverId, OrderId } from "@/domain/shared/ids.js";
 import { AddressSnapshot } from "@/domain/shared/address-snapshot.js";
+import { NoActiveOfferError } from "@/domain/shared/errors.js";
 
 const NOW = new Date("2026-06-05T10:00:00.000Z");
 const EXP = new Date("2026-06-05T10:00:30.000Z");
@@ -44,6 +46,13 @@ describe("Assignment.cancel", () => {
   it("cancel of an awaiting_driver order frees nobody", () => {
     const a = a0();
     expect(a.cancel(EXP)).toEqual({ freedDriverId: null });
+  });
+  it("marks the offered attempt expired so a late accept is rejected", () => {
+    const a = a0();
+    a.offerTo("att-1", DriverId.of(D1), NOW, EXP);
+    a.cancel(EXP);
+    expect(a.currentAttempt()!.outcome).toBe(OfferOutcome.EXPIRED);
+    expect(() => a.accept(DriverId.of(D1), EXP)).toThrow(NoActiveOfferError);
   });
   it("cancel of a terminal order is a no-op", () => {
     const a = a0();
