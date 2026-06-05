@@ -1,0 +1,67 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DISPATCH_DB_URL")
+}
+
+enum AssignmentStatus {
+  awaiting_driver
+  offered
+  assigned
+  completed
+  cancelled
+  failed
+}
+
+enum OfferOutcome {
+  offered
+  accepted
+  rejected
+  expired
+}
+
+model Assignment {
+  orderId          String           @id @map("order_id") @db.Uuid
+  customerId       String           @map("customer_id") @db.Uuid
+  status           AssignmentStatus
+  pickup           Json
+  dropoff          Json
+  scheduledFor     DateTime?        @map("scheduled_for") @db.Timestamptz(6)
+  assignedDriverId String?          @map("assigned_driver_id") @db.Uuid
+  offerAttempts    Int              @default(0) @map("offer_attempts")
+  createdAt        DateTime         @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime         @map("updated_at") @db.Timestamptz(6)
+
+  attempts AssignmentAttempt[]
+
+  @@index([status])
+  @@map("assignments")
+}
+
+model AssignmentAttempt {
+  id          String       @id @db.Uuid
+  orderId     String       @map("order_id") @db.Uuid
+  driverId    String       @map("driver_id") @db.Uuid
+  attemptNo   Int          @map("attempt_no")
+  outcome     OfferOutcome
+  offeredAt   DateTime     @map("offered_at") @db.Timestamptz(6)
+  respondedAt DateTime?    @map("responded_at") @db.Timestamptz(6)
+  expiresAt   DateTime     @map("expires_at") @db.Timestamptz(6)
+
+  assignment Assignment @relation(fields: [orderId], references: [orderId], onDelete: Cascade)
+
+  @@index([orderId])
+  @@map("assignment_attempts")
+}
+
+model ProcessedEvent {
+  eventId     String   @id @map("event_id") @db.Uuid
+  eventType   String   @map("event_type") @db.VarChar(80)
+  processedAt DateTime @default(now()) @map("processed_at") @db.Timestamptz(6)
+
+  @@map("processed_events")
+}
