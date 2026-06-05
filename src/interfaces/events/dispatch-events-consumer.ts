@@ -47,7 +47,11 @@ export async function startDispatchEventsConsumer(deps: ConsumerDeps): Promise<{
       } else if (envelope.eventType === "order.created") {
         await deps.handleOrderCreated.execute(envelope.data as never, corr);
       } else if (envelope.eventType === "driver.availability.changed") {
-        await deps.updateAvailability.execute({ eventId: envelope.eventId, ...envelope.data } as never, corr);
+        const d = envelope.data as { userId: string; isAvailable: boolean; changedAt: string };
+        await deps.updateAvailability.execute(
+          { eventId: envelope.eventId, driverId: String(d.userId), isAvailable: Boolean(d.isAvailable), changedAt: String(d.changedAt) },
+          corr,
+        );
       } else if (envelope.eventType === "delivery.completed") {
         await deps.completeDelivery.execute({ eventId: envelope.eventId, orderId: String(envelope.data.orderId) }, corr);
       } else if (envelope.eventType === "order.cancelled") {
