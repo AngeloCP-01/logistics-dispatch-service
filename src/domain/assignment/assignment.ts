@@ -3,6 +3,7 @@ import type { AddressSnapshot } from "../shared/address-snapshot.js";
 import { AssignmentStatus } from "./assignment-status.js";
 import { OfferOutcome } from "./offer-outcome.js";
 import type { DomainEvent } from "../events/index.js";
+import { InvariantViolationError } from "../shared/errors.js";
 
 export interface OfferAttempt {
   id: string;
@@ -80,6 +81,20 @@ export class Assignment {
     return this.props.attempts
       .filter((a) => a.outcome === OfferOutcome.REJECTED || a.outcome === OfferOutcome.EXPIRED)
       .map((a) => a.driverId);
+  }
+
+  offerTo(attemptId: string, driverId: DriverId, now: Date, expiresAt: Date): void {
+    if (this.props.status !== AssignmentStatus.AWAITING_DRIVER) {
+      throw new InvariantViolationError(`cannot offer in status ${this.props.status}`);
+    }
+    const attemptNo = this.props.offerAttempts + 1;
+    this.props.attempts.push({
+      id: attemptId, driverId, attemptNo,
+      outcome: OfferOutcome.OFFERED, offeredAt: now, respondedAt: null, expiresAt,
+    });
+    this.props.offerAttempts = attemptNo;
+    this.props.status = AssignmentStatus.OFFERED;
+    this.props.updatedAt = now;
   }
 
   pullEvents(): DomainEvent[] {
