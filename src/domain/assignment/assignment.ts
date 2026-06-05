@@ -4,7 +4,7 @@ import { AssignmentStatus } from "./assignment-status.js";
 import { OfferOutcome } from "./offer-outcome.js";
 import type { DomainEvent } from "../events/index.js";
 import { InvariantViolationError, NoActiveOfferError, NotOfferedDriverError } from "../shared/errors.js";
-import { DriverAssigned } from "../events/index.js";
+import { DriverAssigned, AssignmentFailed } from "../events/index.js";
 
 export interface OfferAttempt {
   id: string;
@@ -130,6 +130,15 @@ export class Assignment {
     this.props.status = AssignmentStatus.AWAITING_DRIVER;
     this.props.updatedAt = now;
     return true;
+  }
+
+  markFailed(now: Date): void {
+    if (this.props.status !== AssignmentStatus.AWAITING_DRIVER) {
+      throw new InvariantViolationError(`cannot fail in status ${this.props.status}`);
+    }
+    this.props.status = AssignmentStatus.FAILED;
+    this.props.updatedAt = now;
+    this.events.push(new AssignmentFailed(this.props.orderId, "all_offers_rejected", now));
   }
 
   pullEvents(): DomainEvent[] {
