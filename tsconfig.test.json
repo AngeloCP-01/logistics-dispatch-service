@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"],
+      "@tests/*": ["tests/*"]
+    },
+    "types": ["node", "jest"],
+    "noUnusedLocals": false
+  },
+  "include": ["src/**/*", "tests/**/*"]
+}

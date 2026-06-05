@@ -1,0 +1,25 @@
+// CANONICAL — DO NOT EDIT IN VENDORED COPIES.
+// Source-of-truth for the platform's shared TypeScript base config.
+// All Node services vendor a copy of this file at their repo root.
+// When this file changes, propagation is manual (copy into each service in its next PR).
+// See coding-conventions.md §22 + decomposition spec for the rationale.
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ES2022",
+    "moduleResolution": "node",
+    "lib": ["ES2022"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "forceConsistentCasingInFileNames": true,
+    "declaration": true,
+    "sourceMap": true,
+    "noImplicitOverride": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "exactOptionalPropertyTypes": true
+  }
+}
