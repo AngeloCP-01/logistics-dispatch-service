@@ -3,7 +3,7 @@ import type { AddressSnapshot } from "../shared/address-snapshot.js";
 import { AssignmentStatus, isTerminal } from "./assignment-status.js";
 import { OfferOutcome } from "./offer-outcome.js";
 import type { DomainEvent } from "../events/index.js";
-import { InvariantViolationError, NoActiveOfferError, NotOfferedDriverError } from "../shared/errors.js";
+import { InvariantViolationError, NoActiveOfferError, NotOfferedDriverError, ForceAssignNotAllowedError } from "../shared/errors.js";
 import { DriverAssigned, AssignmentFailed } from "../events/index.js";
 
 export interface OfferAttempt {
@@ -166,6 +166,16 @@ export class Assignment {
     this.props.status = AssignmentStatus.CANCELLED;
     this.props.updatedAt = now;
     return { freedDriverId: freed };
+  }
+
+  forceAssign(driverId: DriverId, now: Date): void {
+    if (this.props.status !== AssignmentStatus.AWAITING_DRIVER && this.props.status !== AssignmentStatus.FAILED) {
+      throw new ForceAssignNotAllowedError(this.props.status);
+    }
+    this.props.status = AssignmentStatus.ASSIGNED;
+    this.props.assignedDriverId = driverId;
+    this.props.updatedAt = now;
+    this.events.push(new DriverAssigned(this.props.orderId, driverId, now));
   }
 
   pullEvents(): DomainEvent[] {
