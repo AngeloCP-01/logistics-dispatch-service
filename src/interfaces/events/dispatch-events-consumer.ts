@@ -45,7 +45,7 @@ export async function startDispatchEventsConsumer(deps: ConsumerDeps): Promise<{
         const d = envelope as unknown as { orderId: string; attemptNo: number };
         await deps.expireOffer.execute({ orderId: d.orderId, attemptNo: d.attemptNo }, corr);
       } else if (envelope.eventType === "order.created") {
-        await deps.handleOrderCreated.execute(envelope.data as never, corr);
+        await deps.handleOrderCreated.execute({ eventId: envelope.eventId, ...envelope.data } as never, corr);
       } else if (envelope.eventType === "driver.availability.changed") {
         const d = envelope.data as { userId: string; isAvailable: boolean; changedAt: string };
         await deps.updateAvailability.execute(
