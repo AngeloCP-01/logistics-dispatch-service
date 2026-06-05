@@ -94,3 +94,5 @@ export class DriverNotAssignableError extends UnprocessableEntityError {
     super(`driver ${driverId} is not a current, assignable driver`);
   }
 }
+
+export class InfrastructureError extends Error {}
