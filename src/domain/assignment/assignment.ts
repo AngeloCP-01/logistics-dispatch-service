@@ -1,6 +1,6 @@
 import type { OrderId, DriverId } from "../shared/ids.js";
 import type { AddressSnapshot } from "../shared/address-snapshot.js";
-import { AssignmentStatus } from "./assignment-status.js";
+import { AssignmentStatus, isTerminal } from "./assignment-status.js";
 import { OfferOutcome } from "./offer-outcome.js";
 import type { DomainEvent } from "../events/index.js";
 import { InvariantViolationError, NoActiveOfferError, NotOfferedDriverError } from "../shared/errors.js";
@@ -139,6 +139,33 @@ export class Assignment {
     this.props.status = AssignmentStatus.FAILED;
     this.props.updatedAt = now;
     this.events.push(new AssignmentFailed(this.props.orderId, "all_offers_rejected", now));
+  }
+
+  /** Idempotent / out-of-order safe: only an `assigned` order can complete. */
+  markCompleted(now: Date): boolean {
+    if (this.props.status !== AssignmentStatus.ASSIGNED) return false;
+    this.props.status = AssignmentStatus.COMPLETED;
+    this.props.updatedAt = now;
+    return true;
+  }
+
+  /** Terminal-safe. Returns the driver that was busy (if any) so the caller can free them. */
+  cancel(now: Date): { freedDriverId: DriverId | null } {
+    if (isTerminal(this.props.status)) return { freedDriverId: null };
+    let freed: DriverId | null = null;
+    if (this.props.status === AssignmentStatus.ASSIGNED) {
+      freed = this.props.assignedDriverId;
+    } else if (this.props.status === AssignmentStatus.OFFERED) {
+      const cur = this.currentAttempt();
+      if (cur) {
+        cur.outcome = OfferOutcome.EXPIRED;
+        cur.respondedAt = now;
+        freed = cur.driverId;
+      }
+    }
+    this.props.status = AssignmentStatus.CANCELLED;
+    this.props.updatedAt = now;
+    return { freedDriverId: freed };
   }
 
   pullEvents(): DomainEvent[] {
