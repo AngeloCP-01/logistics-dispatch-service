@@ -110,6 +110,28 @@ export class Assignment {
     this.events.push(new DriverAssigned(this.props.orderId, driverId, now));
   }
 
+  rejectByDriver(driverId: DriverId, now: Date): void {
+    if (this.props.status !== AssignmentStatus.OFFERED) throw new NoActiveOfferError();
+    const cur = this.currentAttempt();
+    if (!cur || cur.driverId !== driverId) throw new NotOfferedDriverError();
+    cur.outcome = OfferOutcome.REJECTED;
+    cur.respondedAt = now;
+    this.props.status = AssignmentStatus.AWAITING_DRIVER;
+    this.props.updatedAt = now;
+  }
+
+  /** Idempotent: a stale/duplicate expiry (attempt already resolved) is a no-op returning false. */
+  expireOffer(attemptNo: number, now: Date): boolean {
+    if (this.props.status !== AssignmentStatus.OFFERED) return false;
+    const cur = this.currentAttempt();
+    if (!cur || cur.attemptNo !== attemptNo || cur.outcome !== OfferOutcome.OFFERED) return false;
+    cur.outcome = OfferOutcome.EXPIRED;
+    cur.respondedAt = now;
+    this.props.status = AssignmentStatus.AWAITING_DRIVER;
+    this.props.updatedAt = now;
+    return true;
+  }
+
   pullEvents(): DomainEvent[] {
     return this.events.splice(0);
   }
