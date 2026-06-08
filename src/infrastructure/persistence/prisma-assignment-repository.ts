@@ -1,6 +1,6 @@
 import type { PrismaClient, Prisma } from "@prisma/client";
 import { AssignmentMapper } from "./assignment-mapper.js";
-import { Assignment } from "../../domain/assignment/assignment.js";
+import type { Assignment } from "../../domain/assignment/assignment.js";
 import { AssignmentStatus } from "../../domain/assignment/assignment-status.js";
 import type { AssignmentRepository } from "../../domain/assignment/assignment-repository.js";
 import type { OrderId } from "../../domain/shared/ids.js";
