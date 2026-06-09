@@ -99,7 +99,7 @@ npm run typecheck && npm run lint
 
 Unit tests use in-memory fakes; integration tests exercise the real wired app + event consumer against real containers — including the **real TTL+DLX offer-expiry round-trip** and the Redis pool atomicity/FIFO (the layer that catches the wire-mapping, ESM, and async-error bugs unit tests miss).
 
-**Manual / exploratory testing:** [`docs/dispatch-service.http`](docs/dispatch-service.http) is a VS Code REST Client file that drives an assignment into existence (publish `order.created` + `driver.availability.changed`) and exercises every endpoint + the negative paths.
+**Manual / exploratory testing:** [`docs/manual-testing-guide.md`](docs/manual-testing-guide.md) is a step-by-step walkthrough (with an optional 30-line driver stub for `force-assign`), and [`docs/dispatch-service.http`](docs/dispatch-service.http) is a VS Code REST Client file that drives an assignment into existence (publish `order.created` + `driver.availability.changed`) and exercises every endpoint + the negative paths.
 
 ## Architecture
 
