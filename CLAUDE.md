@@ -85,5 +85,7 @@ The pool is **three** structures with atomic Lua ops (NOT a single per-driver lo
 
 - Spec: [`../docs/superpowers/specs/2026-06-05-dispatch-service-design.md`](../docs/superpowers/specs/2026-06-05-dispatch-service-design.md)
 - Plan: [`../docs/superpowers/plans/2026-06-05-phase-4-dispatch-service.md`](../docs/superpowers/plans/2026-06-05-phase-4-dispatch-service.md)
+- OpenAPI: [`../logistics-contracts/openapi/dispatch-service.yaml`](../logistics-contracts/openapi/dispatch-service.yaml)
+- Local exercise file (REST Client): [`docs/dispatch-service.http`](docs/dispatch-service.http)
 - Retro: [`../docs/superpowers/retros/4-dispatch-service.md`](../docs/superpowers/retros/4-dispatch-service.md)
 - Tracker: [`../docs/superpowers/tracker.md`](../docs/superpowers/tracker.md)

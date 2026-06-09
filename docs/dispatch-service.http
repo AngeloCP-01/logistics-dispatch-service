@@ -1,0 +1,287 @@
+### dispatch-service local exercise file
+# REST Client (VS Code) — runs every endpoint of the service.
+# Boot the server first: `npm run dev` (loads .env via tsx --env-file).
+#
+# NOTE on paths: hitting dispatch-service DIRECTLY (this file) uses NO `/v1`
+# prefix — the service mounts at `/dispatch`. In production the gateway adds
+# `/v1` and strips it before forwarding (so clients call `/v1/dispatch/...`).
+#
+# ─────────────────────────────────────────────────────────────────────────
+# THE BIG DIFFERENCE FROM order-service: there is NO HTTP endpoint that
+# creates an assignment. An assignment is born when dispatch CONSUMES an
+# `order.created` event, and a driver only gets offered if the pool has a
+# free driver (fed by `driver.availability.changed` events). So to exercise
+# the HTTP surface you FIRST publish two events via the RabbitMQ UI (see the
+# "Drive an assignment into existence" block), THEN call accept/reject/get.
+#
+# PREREQUISITES:
+#
+#   1. Postgres + Redis + RabbitMQ. `docker compose up -d` brings up the dev
+#      Postgres (:5437) + a Redis. RabbitMQ must be reachable at RABBITMQ_URL —
+#      the platform's `logistics-rabbitmq` (dev/dev creds) is likely already
+#      running (`docker ps`); set RABBITMQ_URL=amqp://dev:dev@localhost:5672.
+#      (If you use the platform RabbitMQ + Redis, you don't need the compose
+#       Redis — see .env.example's note on the 6379 vs 6380 host port.)
+#
+#   2. User JWTs signed with JWT_SECRET. dispatch VERIFIES the inbound token
+#      with JWT_SECRET (= auth-service's AUTH_JWT_SECRET); it does NOT mint
+#      tokens. It only needs `sub` + `role` (HS256). Self-mint:
+#        # a DRIVER token — sub MUST equal the driverId you make available below
+#        node -e 'const jwt=require("jsonwebtoken"); console.log(jwt.sign({sub:"04940000-0000-7000-8000-000000000d01", role:"driver"}, process.env.JWT_SECRET, {algorithm:"HS256", expiresIn:"30m"}))'
+#        # an ADMIN token
+#        node -e 'const jwt=require("jsonwebtoken"); console.log(jwt.sign({sub:"05940000-0000-7000-8000-0000000admin", role:"admin"}, process.env.JWT_SECRET, {algorithm:"HS256", expiresIn:"30m"}))'
+#      Run from this repo so jsonwebtoken + JWT_SECRET resolve, e.g.
+#        export $(grep -v '^#' .env | xargs) && node -e '...'
+#
+#   3. force-assign (admin) VALIDATES the driver via a service-JWT call to
+#      `GET {DISPATCH_USER_SERVICE_URL}/v1/users/internal/drivers/{id}`. To get
+#      a 204 (not 422), that endpoint must return the driver. Two ways:
+#        A. Run user-service alongside, seed a driver, set DISPATCH_USER_SERVICE_URL
+#           to it (and dispatch's SERVICE_JWT_SECRET = user-service's secret).
+#        B. Run a tiny stub that serves /v1/users/internal/drivers/:id (see the
+#           integration test helper `tests/integration/helpers/user-service-driver-stub.ts`).
+#      accept/reject/get do NOT need user-service — only force-assign + the
+#      drivers/available enrichment do.
+#
+#   4. The OFFER expires after DISPATCH_OFFER_TTL_SECONDS (default 30). If you
+#      don't POST /accept within the TTL, the offer expires (via the TTL+DLX
+#      holding queue) and the order re-parks to awaiting_driver. Set a short
+#      DISPATCH_OFFER_TTL_SECONDS to watch this quickly.
+#
+# Usage:
+#   1. Paste a driver JWT into @driverToken (its sub = @driverId) and an admin
+#      JWT into @adminToken.
+#   2. Publish the two events in "Drive an assignment into existence" (RabbitMQ
+#      UI). Use @orderId / @driverId as the ids in those envelopes.
+#   3. Click "Send Request" on the HTTP calls below.
+
+@host = http://localhost:3004
+@contentType = application/json
+
+# The driver you'll make available + offer to. @driverToken's `sub` MUST equal this.
+@driverId = 04940000-0000-7000-8000-000000000d01
+
+# A SECOND driver (for force-assign / wrong-driver probes). Must be resolvable by
+# user-service/stub (prereq #3) for force-assign to 204 instead of 422.
+@driverId2 = 04940000-0000-7000-8000-000000000d02
+
+# The order you'll publish in `order.created`. You choose this id; reference it everywhere.
+@orderId = 06940000-0000-7000-8000-00000000a001
+
+# Paste valid user JWTs (see prereq #2 — node one-liner self-mints them).
+@driverToken = <paste DRIVER JWT (role = driver, sub = @driverId)>
+@adminToken  = <paste ADMIN JWT (role = admin)>
+
+
+############################################################
+# Health
+############################################################
+
+### healthz — liveness (always 200)
+GET {{host}}/healthz
+
+### readyz — readiness (200 when Postgres + RabbitMQ channel + Redis are healthy)
+GET {{host}}/readyz
+
+
+############################################################
+# Drive an assignment into existence — publish via RabbitMQ UI
+#   (http://localhost:15672, login dev/dev) → exchange `logistics.events`
+############################################################
+#
+# dispatch is event-driven: it has NO "create assignment" HTTP endpoint. Publish
+# these two envelopes to exchange `logistics.events` with the routing keys below.
+# Use @driverId / @orderId as the ids. After publishing, GET the assignment
+# (admin) to watch awaiting_driver → offered.
+#
+# ────── STEP 1: make a driver available  (adds @driverId to the FIFO pool) ──────
+# Routing key: driver.availability.changed
+# Body:  (NOTE: the field is `userId`, NOT driverId — it's the driver's user id)
+# {
+#   "eventId": "07940000-0000-7000-8000-aaaaaaaaaaaa",
+#   "eventType": "driver.availability.changed",
+#   "eventVersion": "1.0.0",
+#   "occurredAt": "2026-06-09T00:00:00Z",
+#   "correlationId": "smoke-1",
+#   "producer": "user-service",
+#   "data": { "userId": "04940000-0000-7000-8000-000000000d01", "isAvailable": true, "changedAt": "2026-06-09T00:00:00Z" }
+# }
+#
+# ────── STEP 2: place an order  (creates the assignment + offers to the driver) ──────
+# Routing key: order.created
+# Body:
+# {
+#   "eventId": "07940000-0000-7000-8000-bbbbbbbbbbbb",
+#   "eventType": "order.created",
+#   "eventVersion": "1.0.0",
+#   "occurredAt": "2026-06-09T00:01:00Z",
+#   "correlationId": "smoke-2",
+#   "producer": "order-service",
+#   "data": {
+#     "orderId": "06940000-0000-7000-8000-00000000a001",
+#     "customerId": "47913fd3-7bf9-4182-9d94-6144ddb74cfe",
+#     "pickup":  { "label": "Warehouse 3", "street": "12 Dock Rd", "city": "Manila", "country": "PH", "lat": 14.5547, "lng": 120.9772 },
+#     "dropoff": { "street": "9 Ayala Ave", "city": "Makati", "country": "PH", "lat": 14.5547, "lng": 121.0244 },
+#     "items": [ { "description": "Sealed parcel", "quantity": 2 } ],
+#     "scheduledFor": null
+#   }
+# }
+#
+# After STEP 2, GET the assignment → status "offered", currentAttempt.driverId = @driverId.
+# Don't accept within DISPATCH_OFFER_TTL_SECONDS → it expires → back to awaiting_driver.
+
+
+############################################################
+# Read the assignment
+############################################################
+
+### Admin reads any assignment by orderId
+GET {{host}}/dispatch/assignments/{{orderId}}
+Authorization: Bearer {{adminToken}}
+
+### The OFFERED driver reads their assignment (admin OR the involved driver only)
+GET {{host}}/dispatch/assignments/{{orderId}}
+Authorization: Bearer {{driverToken}}
+
+
+############################################################
+# Accept / reject the offer (driver)
+############################################################
+
+### Driver ACCEPTS the current offer → 204, status becomes assigned, publishes dispatch.driver.assigned
+# The driver JWT `sub` must equal the currently-offered driver (@driverId).
+POST {{host}}/dispatch/assignments/{{orderId}}/accept
+Authorization: Bearer {{driverToken}}
+
+### Driver REJECTS the current offer → 204, back to awaiting_driver, frees the driver, re-attempts
+# (reason optional). Re-publish STEP 1 for another driver to see the re-offer.
+POST {{host}}/dispatch/assignments/{{orderId}}/reject
+Authorization: Bearer {{driverToken}}
+Content-Type: {{contentType}}
+
+{
+  "reason": "too far"
+}
+
+
+############################################################
+# Admin force-assign + available drivers
+############################################################
+
+### Admin force-assigns a driver to an unassigned/parked/failed order → 204, status assigned
+# Requires @driverId2 to be resolvable via user-service/stub (prereq #3), else 422.
+# Only allowed from awaiting_driver or failed (NOT offered/assigned/completed/cancelled).
+POST {{host}}/dispatch/assignments/{{orderId}}/force-assign
+Authorization: Bearer {{adminToken}}
+Content-Type: {{contentType}}
+
+{
+  "driverId": "{{driverId2}}"
+}
+
+### Admin lists currently-available drivers (enriched from user-service)
+GET {{host}}/dispatch/drivers/available
+Authorization: Bearer {{adminToken}}
+
+
+############################################################
+# Free a busy driver — publish via RabbitMQ UI (exchange logistics.events)
+############################################################
+#
+# Once a driver is `assigned`, these events free them back into the pool and
+# re-dispatch parked orders. GET /dispatch/drivers/available after to confirm.
+#
+# ────── delivery.completed  (driver finished → freed, order completed) ──────
+# Routing key: delivery.completed
+# Body:
+# {
+#   "eventId": "07940000-0000-7000-8000-cccccccccccc",
+#   "eventType": "delivery.completed",
+#   "eventVersion": "1.0.0",
+#   "occurredAt": "2026-06-09T00:30:00Z",
+#   "correlationId": "smoke-3",
+#   "producer": "tracking-service",
+#   "data": { "orderId": "06940000-0000-7000-8000-00000000a001" }
+# }
+#
+# ────── order.cancelled  (order cancelled → driver freed if any) ──────
+# Routing key: order.cancelled
+# Body:
+# {
+#   "eventId": "07940000-0000-7000-8000-dddddddddddd",
+#   "eventType": "order.cancelled",
+#   "eventVersion": "1.0.0",
+#   "occurredAt": "2026-06-09T00:10:00Z",
+#   "correlationId": "smoke-4",
+#   "producer": "order-service",
+#   "data": { "orderId": "06940000-0000-7000-8000-00000000a001", "customerId": "47913fd3-7bf9-4182-9d94-6144ddb74cfe", "previousStatus": "assigned", "reason": "customer changed mind" }
+# }
+#
+# Idempotency probe: publish the SAME envelope twice (same eventId) — the second
+# is a no-op (processed_events dedups; driver not double-freed).
+
+
+############################################################
+# Negative-path probes (intentionally fail; for spot-checking error shapes)
+############################################################
+
+### No auth — expect 401 unauthorized
+GET {{host}}/dispatch/assignments/{{orderId}}
+
+### Bogus JWT — expect 401 unauthorized
+GET {{host}}/dispatch/assignments/{{orderId}}
+Authorization: Bearer not.a.real.jwt
+
+### Accept by a driver who is NOT the offered driver — expect 403 forbidden
+# Use a driver JWT whose sub != the currently-offered @driverId.
+POST {{host}}/dispatch/assignments/{{orderId}}/accept
+Authorization: Bearer <paste a DIFFERENT driver's JWT (role=driver, sub != @driverId)>
+
+### Accept when the order is NOT offered (e.g. already assigned, or awaiting) — expect 409 conflict
+POST {{host}}/dispatch/assignments/{{orderId}}/accept
+Authorization: Bearer {{driverToken}}
+
+### Accept with a CUSTOMER-role JWT — expect 403 (role guard: drivers only)
+POST {{host}}/dispatch/assignments/{{orderId}}/accept
+Authorization: Bearer <paste a CUSTOMER JWT (role = customer)>
+
+### force-assign by a NON-admin (driver) — expect 403 forbidden
+POST {{host}}/dispatch/assignments/{{orderId}}/force-assign
+Authorization: Bearer {{driverToken}}
+Content-Type: {{contentType}}
+
+{ "driverId": "{{driverId2}}" }
+
+### force-assign an UNKNOWN driver (not in user-service/stub) — expect 422 unprocessable_entity
+POST {{host}}/dispatch/assignments/{{orderId}}/force-assign
+Authorization: Bearer {{adminToken}}
+Content-Type: {{contentType}}
+
+{ "driverId": "04940000-0000-7000-8000-0000000dead0" }
+
+### force-assign with a non-uuid driverId — expect 400 validation_failed
+POST {{host}}/dispatch/assignments/{{orderId}}/force-assign
+Authorization: Bearer {{adminToken}}
+Content-Type: {{contentType}}
+
+{ "driverId": "not-a-uuid" }
+
+### force-assign an already-assigned order — expect 409 conflict
+# Drive the order to assigned first (accept), then run this.
+POST {{host}}/dispatch/assignments/{{orderId}}/force-assign
+Authorization: Bearer {{adminToken}}
+Content-Type: {{contentType}}
+
+{ "driverId": "{{driverId2}}" }
+
+### GET an assignment as an UNRELATED driver (not the offered/assigned one) — expect 403 forbidden
+GET {{host}}/dispatch/assignments/{{orderId}}
+Authorization: Bearer <paste an UNRELATED driver's JWT>
+
+### GET a nonexistent assignment (admin) — expect 404 not_found
+GET {{host}}/dispatch/assignments/06940000-0000-7000-8000-00000000ffff
+Authorization: Bearer {{adminToken}}
+
+### List available drivers as a NON-admin (driver) — expect 403 forbidden
+GET {{host}}/dispatch/drivers/available
+Authorization: Bearer {{driverToken}}
