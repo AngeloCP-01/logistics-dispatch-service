@@ -190,7 +190,7 @@ Authorization: Bearer {{adminToken}}
 ############################################################
 #
 # Once a driver is `assigned`, these events free them back into the pool and
-# re-dispatch parked orders. GET /dispatch/drivers/available after to confirm.
+# re-dispatch parked orders. GET /v1/dispatch/drivers/available after to confirm.
 #
 # ────── delivery.completed  (driver finished → freed, order completed) ──────
 # Routing key: delivery.completed
