@@ -71,7 +71,7 @@ npm run prisma:migrate    # applies 20260605061904_init_dispatch to :5437
 
 ## 1. Driver directory (OPTIONAL — only for force-assign + `drivers/available` names)
 
-Skip this for the offer/accept/reject/expiry flow. Do it before testing `force-assign` or to get real names in `GET /dispatch/drivers/available`.
+Skip this for the offer/accept/reject/expiry flow. Do it before testing `force-assign` or to get real names in `GET /v1/dispatch/drivers/available`.
 
 ### Path B — driver stub (fastest)
 
@@ -202,17 +202,17 @@ Using `dispatch-service.http` (click "Send Request") or curl. `@orderId` = `0694
 
 | # | Action | Expect |
 |---|---|---|
-| 1 | `GET /dispatch/assignments/{orderId}` (admin) | **200**, `status:"offered"`, `attempts[0].driverId = …d01` |
-| 2 | `GET /dispatch/assignments/{orderId}` (the offered driver) | **200** (admin or the involved driver only) |
-| 3 | `POST /dispatch/assignments/{orderId}/accept` (driver …d01) | **204**; status → `assigned`; publishes `dispatch.driver.assigned` |
-| 4 | `GET /dispatch/drivers/available` (admin) | **200**, `{ items: [...] }` (the accepted driver is now busy, so absent) |
+| 1 | `GET /v1/dispatch/assignments/{orderId}` (admin) | **200**, `status:"offered"`, `attempts[0].driverId = …d01` |
+| 2 | `GET /v1/dispatch/assignments/{orderId}` (the offered driver) | **200** (admin or the involved driver only) |
+| 3 | `POST /v1/dispatch/assignments/{orderId}/accept` (driver …d01) | **204**; status → `assigned`; publishes `dispatch.driver.assigned` |
+| 4 | `GET /v1/dispatch/drivers/available` (admin) | **200**, `{ items: [...] }` (the accepted driver is now busy, so absent) |
 
 curl example for step 3:
 
 ```bash
 TOKEN="<paste DRIVER JWT (sub = …d01)>"
 curl -s -o /dev/null -w "%{http_code}\n" -X POST \
-  localhost:3004/dispatch/assignments/06940000-0000-7000-8000-00000000a001/accept \
+  localhost:3004/v1/dispatch/assignments/06940000-0000-7000-8000-00000000a001/accept \
   -H "authorization: Bearer $TOKEN"      # 204
 ```
 
@@ -230,7 +230,7 @@ curl -s -o /dev/null -w "%{http_code}\n" -X POST \
 | **Park (empty pool)** | Run §4 STEP 2 only (no driver available) | status `awaiting_driver`, no offer made |
 | **Park → assign** | After parking, run §4 STEP 1 (make a driver available) | the parked order is retried → `offered` |
 | **Fail (exhaustion)** | Reject (or expire) 3 distinct offers | status `failed`, publishes `dispatch.assignment.failed` `{orderId, reason:"all_offers_rejected"}` |
-| **Free on completion** | Drive an order to `assigned`, then publish `delivery.completed` `{orderId}` | the driver returns to `GET /dispatch/drivers/available` |
+| **Free on completion** | Drive an order to `assigned`, then publish `delivery.completed` `{orderId}` | the driver returns to `GET /v1/dispatch/drivers/available` |
 | **Free on cancellation** | On an `assigned`/`offered` order, publish `order.cancelled` `{orderId, customerId, previousStatus, reason}` | driver freed; the order's assignment is `cancelled` |
 
 `delivery.completed` envelope (routing key `delivery.completed`):
@@ -273,7 +273,7 @@ Run the "Negative-path probes" block in `dispatch-service.http`. Expected:
 | `force-assign` an already-`assigned` order | **409** |
 | `GET` an assignment as an unrelated driver | **403** |
 | `GET` a nonexistent assignment (admin) | **404** |
-| `GET /dispatch/drivers/available` as a non-admin | **403** |
+| `GET /v1/dispatch/drivers/available` as a non-admin | **403** |
 
 All errors are `application/problem+json` (RFC 7807) with `type`, `title`, `status`, `instance`.
 
@@ -305,7 +305,7 @@ docker compose down                 # dev Postgres + Redis
 ---
 
 ### Notes / gotchas
-- **No `/v1`** when hitting dispatch directly (`:3004/dispatch/...`). The gateway adds `/v1` in production.
+- **Routes mount under `/v1`** (`:3004/v1/dispatch/...`). The gateway is pass-through — it forwards `/v1/dispatch/...` unchanged — so the path is the same whether you hit dispatch directly or via the gateway. Health checks (`/healthz`, `/readyz`) stay unprefixed.
 - **Assignments are event-born.** There is no HTTP create; publish `order.created` (and `driver.availability.changed` for a free driver) to make one.
 - **The hot offer path never calls user-service.** Only `force-assign` and the `drivers/available` enrichment resolve driver profiles — so §1 is optional.
 - **`driver.availability.changed` carries `userId`, not `driverId`** — and the driver JWT's `sub` must equal it for that driver to accept.
