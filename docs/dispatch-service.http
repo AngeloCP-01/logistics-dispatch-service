@@ -2,9 +2,10 @@
 # REST Client (VS Code) — runs every endpoint of the service.
 # Boot the server first: `npm run dev` (loads .env via tsx --env-file).
 #
-# NOTE on paths: hitting dispatch-service DIRECTLY (this file) uses NO `/v1`
-# prefix — the service mounts at `/dispatch`. In production the gateway adds
-# `/v1` and strips it before forwarding (so clients call `/v1/dispatch/...`).
+# NOTE on paths: the service mounts its routes under `/v1` (`/v1/dispatch/...`).
+# The gateway is pass-through — it forwards `/v1/dispatch/...` UNCHANGED — so the
+# path is identical whether you hit dispatch-service DIRECTLY (this file) or via
+# the gateway. Health checks (`/healthz`, `/readyz`) stay unprefixed.
 #
 # ─────────────────────────────────────────────────────────────────────────
 # THE BIG DIFFERENCE FROM order-service: there is NO HTTP endpoint that
@@ -136,11 +137,11 @@ GET {{host}}/readyz
 ############################################################
 
 ### Admin reads any assignment by orderId
-GET {{host}}/dispatch/assignments/{{orderId}}
+GET {{host}}/v1/dispatch/assignments/{{orderId}}
 Authorization: Bearer {{adminToken}}
 
 ### The OFFERED driver reads their assignment (admin OR the involved driver only)
-GET {{host}}/dispatch/assignments/{{orderId}}
+GET {{host}}/v1/dispatch/assignments/{{orderId}}
 Authorization: Bearer {{driverToken}}
 
 
@@ -150,12 +151,12 @@ Authorization: Bearer {{driverToken}}
 
 ### Driver ACCEPTS the current offer → 204, status becomes assigned, publishes dispatch.driver.assigned
 # The driver JWT `sub` must equal the currently-offered driver (@driverId).
-POST {{host}}/dispatch/assignments/{{orderId}}/accept
+POST {{host}}/v1/dispatch/assignments/{{orderId}}/accept
 Authorization: Bearer {{driverToken}}
 
 ### Driver REJECTS the current offer → 204, back to awaiting_driver, frees the driver, re-attempts
 # (reason optional). Re-publish STEP 1 for another driver to see the re-offer.
-POST {{host}}/dispatch/assignments/{{orderId}}/reject
+POST {{host}}/v1/dispatch/assignments/{{orderId}}/reject
 Authorization: Bearer {{driverToken}}
 Content-Type: {{contentType}}
 
@@ -171,7 +172,7 @@ Content-Type: {{contentType}}
 ### Admin force-assigns a driver to an unassigned/parked/failed order → 204, status assigned
 # Requires @driverId2 to be resolvable via user-service/stub (prereq #3), else 422.
 # Only allowed from awaiting_driver or failed (NOT offered/assigned/completed/cancelled).
-POST {{host}}/dispatch/assignments/{{orderId}}/force-assign
+POST {{host}}/v1/dispatch/assignments/{{orderId}}/force-assign
 Authorization: Bearer {{adminToken}}
 Content-Type: {{contentType}}
 
@@ -180,7 +181,7 @@ Content-Type: {{contentType}}
 }
 
 ### Admin lists currently-available drivers (enriched from user-service)
-GET {{host}}/dispatch/drivers/available
+GET {{host}}/v1/dispatch/drivers/available
 Authorization: Bearer {{adminToken}}
 
 
@@ -226,41 +227,41 @@ Authorization: Bearer {{adminToken}}
 ############################################################
 
 ### No auth — expect 401 unauthorized
-GET {{host}}/dispatch/assignments/{{orderId}}
+GET {{host}}/v1/dispatch/assignments/{{orderId}}
 
 ### Bogus JWT — expect 401 unauthorized
-GET {{host}}/dispatch/assignments/{{orderId}}
+GET {{host}}/v1/dispatch/assignments/{{orderId}}
 Authorization: Bearer not.a.real.jwt
 
 ### Accept by a driver who is NOT the offered driver — expect 403 forbidden
 # Use a driver JWT whose sub != the currently-offered @driverId.
-POST {{host}}/dispatch/assignments/{{orderId}}/accept
+POST {{host}}/v1/dispatch/assignments/{{orderId}}/accept
 Authorization: Bearer <paste a DIFFERENT driver's JWT (role=driver, sub != @driverId)>
 
 ### Accept when the order is NOT offered (e.g. already assigned, or awaiting) — expect 409 conflict
-POST {{host}}/dispatch/assignments/{{orderId}}/accept
+POST {{host}}/v1/dispatch/assignments/{{orderId}}/accept
 Authorization: Bearer {{driverToken}}
 
 ### Accept with a CUSTOMER-role JWT — expect 403 (role guard: drivers only)
-POST {{host}}/dispatch/assignments/{{orderId}}/accept
+POST {{host}}/v1/dispatch/assignments/{{orderId}}/accept
 Authorization: Bearer <paste a CUSTOMER JWT (role = customer)>
 
 ### force-assign by a NON-admin (driver) — expect 403 forbidden
-POST {{host}}/dispatch/assignments/{{orderId}}/force-assign
+POST {{host}}/v1/dispatch/assignments/{{orderId}}/force-assign
 Authorization: Bearer {{driverToken}}
 Content-Type: {{contentType}}
 
 { "driverId": "{{driverId2}}" }
 
 ### force-assign an UNKNOWN driver (not in user-service/stub) — expect 422 unprocessable_entity
-POST {{host}}/dispatch/assignments/{{orderId}}/force-assign
+POST {{host}}/v1/dispatch/assignments/{{orderId}}/force-assign
 Authorization: Bearer {{adminToken}}
 Content-Type: {{contentType}}
 
 { "driverId": "04940000-0000-7000-8000-0000000dead0" }
 
 ### force-assign with a non-uuid driverId — expect 400 validation_failed
-POST {{host}}/dispatch/assignments/{{orderId}}/force-assign
+POST {{host}}/v1/dispatch/assignments/{{orderId}}/force-assign
 Authorization: Bearer {{adminToken}}
 Content-Type: {{contentType}}
 
@@ -268,20 +269,20 @@ Content-Type: {{contentType}}
 
 ### force-assign an already-assigned order — expect 409 conflict
 # Drive the order to assigned first (accept), then run this.
-POST {{host}}/dispatch/assignments/{{orderId}}/force-assign
+POST {{host}}/v1/dispatch/assignments/{{orderId}}/force-assign
 Authorization: Bearer {{adminToken}}
 Content-Type: {{contentType}}
 
 { "driverId": "{{driverId2}}" }
 
 ### GET an assignment as an UNRELATED driver (not the offered/assigned one) — expect 403 forbidden
-GET {{host}}/dispatch/assignments/{{orderId}}
+GET {{host}}/v1/dispatch/assignments/{{orderId}}
 Authorization: Bearer <paste an UNRELATED driver's JWT>
 
 ### GET a nonexistent assignment (admin) — expect 404 not_found
-GET {{host}}/dispatch/assignments/06940000-0000-7000-8000-00000000ffff
+GET {{host}}/v1/dispatch/assignments/06940000-0000-7000-8000-00000000ffff
 Authorization: Bearer {{adminToken}}
 
 ### List available drivers as a NON-admin (driver) — expect 403 forbidden
-GET {{host}}/dispatch/drivers/available
+GET {{host}}/v1/dispatch/drivers/available
 Authorization: Bearer {{driverToken}}
