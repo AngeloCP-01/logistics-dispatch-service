@@ -14,7 +14,7 @@ const D1 = "018f4e1a-0001-7c3d-8e4f-5a6b7c8d9e0f";
 
 async function getAssignment(orderId: string): Promise<Record<string, unknown>> {
   const res = await request(fx.baseUrl)
-    .get(`/dispatch/assignments/${orderId}`)
+    .get(`/v1/dispatch/assignments/${orderId}`)
     .set("Authorization", `Bearer ${fx.signUserJwt(uuidV7(), "admin")}`);
   return res.body as Record<string, unknown>;
 }

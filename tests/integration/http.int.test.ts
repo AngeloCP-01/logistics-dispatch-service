@@ -17,7 +17,7 @@ const adminJwt = () => fx.signUserJwt(uuidV7(), "admin");
 
 async function getStatus(orderId: string): Promise<unknown> {
   const res = await request(fx.baseUrl)
-    .get(`/dispatch/assignments/${orderId}`)
+    .get(`/v1/dispatch/assignments/${orderId}`)
     .set("Authorization", `Bearer ${adminJwt()}`);
   return res.body.status;
 }
@@ -41,7 +41,7 @@ describe("HTTP authz", () => {
     const orderId = uuidV7();
     await offerToD1(orderId);
     const res = await request(fx.baseUrl)
-      .post(`/dispatch/assignments/${orderId}/accept`)
+      .post(`/v1/dispatch/assignments/${orderId}/accept`)
       .set("Authorization", `Bearer ${fx.signUserJwt(D2, "driver")}`)
       .send({});
     expect(res.status).toBe(403);
@@ -52,13 +52,13 @@ describe("HTTP authz", () => {
     await offerToD1(orderId);
     // D1 accepts → assigned
     await request(fx.baseUrl)
-      .post(`/dispatch/assignments/${orderId}/accept`)
+      .post(`/v1/dispatch/assignments/${orderId}/accept`)
       .set("Authorization", `Bearer ${fx.signUserJwt(D1, "driver")}`)
       .send({})
       .expect(204);
     // accepting again is a conflict (no active offer)
     const res = await request(fx.baseUrl)
-      .post(`/dispatch/assignments/${orderId}/accept`)
+      .post(`/v1/dispatch/assignments/${orderId}/accept`)
       .set("Authorization", `Bearer ${fx.signUserJwt(D1, "driver")}`)
       .send({});
     expect(res.status).toBe(409);
@@ -68,7 +68,7 @@ describe("HTTP authz", () => {
     const orderId = uuidV7();
     await offerToD1(orderId);
     const res = await request(fx.baseUrl)
-      .post(`/dispatch/assignments/${orderId}/accept`)
+      .post(`/v1/dispatch/assignments/${orderId}/accept`)
       .set("Authorization", `Bearer ${fx.signUserJwt(uuidV7(), "customer")}`)
       .send({});
     expect(res.status).toBe(403);
@@ -78,7 +78,7 @@ describe("HTTP authz", () => {
     const orderId = uuidV7();
     await parkOrder(orderId);
     const res = await request(fx.baseUrl)
-      .post(`/dispatch/assignments/${orderId}/force-assign`)
+      .post(`/v1/dispatch/assignments/${orderId}/force-assign`)
       .set("Authorization", `Bearer ${fx.signUserJwt(D1, "driver")}`)
       .send({ driverId: D1 });
     expect(res.status).toBe(403);
@@ -89,7 +89,7 @@ describe("HTTP authz", () => {
     await parkOrder(orderId);
     // driverStub is empty → directory returns 404 → DriverNotAssignableError (422)
     const res = await request(fx.baseUrl)
-      .post(`/dispatch/assignments/${orderId}/force-assign`)
+      .post(`/v1/dispatch/assignments/${orderId}/force-assign`)
       .set("Authorization", `Bearer ${adminJwt()}`)
       .send({ driverId: D1 });
     expect(res.status).toBe(422);
@@ -100,7 +100,7 @@ describe("HTTP authz", () => {
     await parkOrder(orderId);
     fx.driverStub.set(D1, { userId: D1, displayName: "Driver One", vehicleType: "car" });
     const res = await request(fx.baseUrl)
-      .post(`/dispatch/assignments/${orderId}/force-assign`)
+      .post(`/v1/dispatch/assignments/${orderId}/force-assign`)
       .set("Authorization", `Bearer ${adminJwt()}`)
       .send({ driverId: D1 });
     expect(res.status).toBe(204);
@@ -112,13 +112,13 @@ describe("HTTP authz", () => {
     await parkOrder(orderId);
     fx.driverStub.set(D1, { userId: D1, displayName: "Driver One", vehicleType: "car" });
     await request(fx.baseUrl)
-      .post(`/dispatch/assignments/${orderId}/force-assign`)
+      .post(`/v1/dispatch/assignments/${orderId}/force-assign`)
       .set("Authorization", `Bearer ${adminJwt()}`)
       .send({ driverId: D1 })
       .expect(204);
     fx.driverStub.set(D2, { userId: D2, displayName: "Driver Two", vehicleType: "bike" });
     const res = await request(fx.baseUrl)
-      .post(`/dispatch/assignments/${orderId}/force-assign`)
+      .post(`/v1/dispatch/assignments/${orderId}/force-assign`)
       .set("Authorization", `Bearer ${adminJwt()}`)
       .send({ driverId: D2 });
     expect(res.status).toBe(409);
@@ -128,7 +128,7 @@ describe("HTTP authz", () => {
     const orderId = uuidV7();
     await offerToD1(orderId);
     const res = await request(fx.baseUrl)
-      .get(`/dispatch/assignments/${orderId}`)
+      .get(`/v1/dispatch/assignments/${orderId}`)
       .set("Authorization", `Bearer ${fx.signUserJwt(D2, "driver")}`);
     expect(res.status).toBe(403);
   });
@@ -137,7 +137,7 @@ describe("HTTP authz", () => {
     const orderId = uuidV7();
     await offerToD1(orderId);
     const res = await request(fx.baseUrl)
-      .get(`/dispatch/assignments/${orderId}`)
+      .get(`/v1/dispatch/assignments/${orderId}`)
       .set("Authorization", `Bearer ${adminJwt()}`);
     expect(res.status).toBe(200);
     expect(res.body.orderId).toBe(orderId);

@@ -40,7 +40,7 @@ export function createApp(deps: AppDeps): Express {
 
   // Everything below requires an authenticated user; auth sets req.userId + req.role.
   app.use(userAuth(deps.userJwt));
-  app.use(dispatchRoutes(deps.controller));
+  app.use("/v1", dispatchRoutes(deps.controller));
 
   app.use(errorMapper());
   return app;
