@@ -27,15 +27,15 @@ order.created ──▶ awaiting_driver ──(offer to next free driver)──�
 - **Settle-then-publish.** `dispatch.driver.assigned` is published after the assignment is persisted (and only once per assignment).
 - **Admin force-assign** is allowed for unassigned/parked/failed orders only — never in-flight.
 
-## API surface (via the gateway, `/v1` prefix added there)
+## API surface (mounted under `/v1/dispatch`; the gateway forwards `/v1` pass-through)
 
 | Method | Path | Auth | Purpose |
 |---|---|---|---|
-| `GET` | `/dispatch/assignments/{orderId}` | admin or involved driver | Single assignment |
-| `POST` | `/dispatch/assignments/{orderId}/accept` | driver | Accept the current offer (→ assigned) |
-| `POST` | `/dispatch/assignments/{orderId}/reject` | driver | Reject the current offer (`{ reason? }`) |
-| `POST` | `/dispatch/assignments/{orderId}/force-assign` | admin | Force a driver onto a parked/failed order (`{ driverId }`) |
-| `GET` | `/dispatch/drivers/available` | admin | Currently-available drivers |
+| `GET` | `/v1/dispatch/assignments/{orderId}` | admin or involved driver | Single assignment |
+| `POST` | `/v1/dispatch/assignments/{orderId}/accept` | driver | Accept the current offer (→ assigned) |
+| `POST` | `/v1/dispatch/assignments/{orderId}/reject` | driver | Reject the current offer (`{ reason? }`) |
+| `POST` | `/v1/dispatch/assignments/{orderId}/force-assign` | admin | Force a driver onto a parked/failed order (`{ driverId }`) |
+| `GET` | `/v1/dispatch/drivers/available` | admin | Currently-available drivers |
 | `GET` | `/healthz` · `/readyz` | none | Liveness / readiness (Postgres + RabbitMQ + Redis) |
 
 Errors are RFC 7807 Problem Details. There is **no HTTP endpoint to create an assignment** — assignments are born from the `order.created` event.

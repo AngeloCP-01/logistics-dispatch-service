@@ -24,12 +24,12 @@ Consumes `order.created`, picks the longest-waiting available driver from a FIFO
 
 - **Events consumed**: `order.created`, `driver.availability.changed`, `delivery.completed`, `order.cancelled`, and the internal `dispatch.offer.expired` (the TTL+DLX expiry message).
 - **Events published**: `dispatch.driver.assigned` `{orderId, driverId}`, `dispatch.assignment.failed` `{orderId, reason: "all_offers_rejected"}`.
-- **Public endpoints** (via gateway, no `/v1` prefix in-repo — the gateway prepends it):
-  - `GET /dispatch/assignments/{orderId}` (admin or the involved driver)
-  - `POST /dispatch/assignments/{orderId}/accept` (driver)
-  - `POST /dispatch/assignments/{orderId}/reject` (driver)
-  - `POST /dispatch/assignments/{orderId}/force-assign` (admin)
-  - `GET /dispatch/drivers/available` (admin)
+- **Public endpoints** (mounted under `/v1/dispatch`; the gateway forwards `/v1` pass-through — it does not add or strip it):
+  - `GET /v1/dispatch/assignments/{orderId}` (admin or the involved driver)
+  - `POST /v1/dispatch/assignments/{orderId}/accept` (driver)
+  - `POST /v1/dispatch/assignments/{orderId}/reject` (driver)
+  - `POST /v1/dispatch/assignments/{orderId}/force-assign` (admin)
+  - `GET /v1/dispatch/drivers/available` (admin)
   - `GET /healthz` (liveness) + `GET /readyz` (Postgres + RabbitMQ channel + Redis ping)
 
 ## Architecture
