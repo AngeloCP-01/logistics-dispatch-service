@@ -47,6 +47,7 @@ function toRow(a: Assignment): PrismaAssignment & { attempts: PrismaAttempt[] } 
     status: p.status,
     pickup: p.pickup,
     dropoff: p.dropoff,
+    items: [],
     scheduledFor: p.scheduledFor,
     assignedDriverId: p.assignedDriverId,
     offerAttempts: p.offerAttempts,
