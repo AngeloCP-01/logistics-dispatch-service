@@ -31,6 +31,7 @@ import { UpdateAvailabilityUseCase } from "../../../src/application/dispatch/upd
 import { ForceAssignUseCase } from "../../../src/application/dispatch/force-assign.use-case.js";
 import { GetAssignmentUseCase } from "../../../src/application/dispatch/get-assignment.use-case.js";
 import { ListAvailableDriversUseCase } from "../../../src/application/dispatch/list-available-drivers.use-case.js";
+import { GetCurrentOfferUseCase } from "../../../src/application/dispatch/get-current-offer.use-case.js";
 import { AssignmentController } from "../../../src/interfaces/http/controllers/assignment-controller.js";
 import { HealthController } from "../../../src/interfaces/http/controllers/health-controller.js";
 import { startDispatchEventsConsumer } from "../../../src/interfaces/events/dispatch-events-consumer.js";
@@ -109,9 +110,10 @@ export async function bootstrap(opts?: { offerTtlSeconds?: number; startConsumer
   const forceAssign = new ForceAssignUseCase(assignmentsRepo, pool, directory, publisher, clock);
   const getAssignment = new GetAssignmentUseCase(assignmentsRepo);
   const listAvailable = new ListAvailableDriversUseCase(pool, directory);
+  const getCurrentOffer = new GetCurrentOfferUseCase(assignmentsRepo);
 
   let shuttingDown = false;
-  const controller = new AssignmentController(acceptOffer, rejectOffer, forceAssign, getAssignment, listAvailable);
+  const controller = new AssignmentController(acceptOffer, rejectOffer, forceAssign, getAssignment, listAvailable, getCurrentOffer);
   const health = new HealthController(prisma, () => activeChannel, () => shuttingDown, redis);
   const userJwt = new UserJwtVerifier(USER_SECRET);
 

@@ -23,7 +23,7 @@ function setup() {
 }
 function park(_assignments: FakeAssignmentRepository, attempts = 0) {
   const a = Assignment.fromOrderCreated(
-    { orderId: OrderId.of(OID), customerId: "c1", pickup: addr(1), dropoff: addr(2), scheduledFor: null }, NOW);
+    { orderId: OrderId.of(OID), customerId: "c1", pickup: addr(1), dropoff: addr(2), items: [], scheduledFor: null }, NOW);
   for (let i = 0; i < attempts; i++) {
     const d = DriverId.of(`018f4e1a-00${(i + 10).toString().padStart(2, "0")}-7c3d-8e4f-5a6b7c8d9e0f`);
     a.offerTo(`att-${i}`, d, NOW, NOW); a.rejectByDriver(d, NOW);

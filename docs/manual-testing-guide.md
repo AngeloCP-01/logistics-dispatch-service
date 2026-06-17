@@ -207,6 +207,15 @@ Using `dispatch-service.http` (click "Send Request") or curl. `@orderId` = `0694
 | 3 | `POST /v1/dispatch/assignments/{orderId}/accept` (driver …d01) | **204**; status → `assigned`; publishes `dispatch.driver.assigned` |
 | 4 | `GET /v1/dispatch/drivers/available` (admin) | **200**, `{ items: [...] }` (the accepted driver is now busy, so absent) |
 
+**Discovering the offer from the driver's side:** a driver polls `GET /v1/dispatch/offers/current` with their bearer token — it returns `204` while no offer is outstanding, then `200` with `{ orderId, offerAttempts, expiresAt, order: { pickup, dropoff, items } }` once they have been offered a delivery. This is the driver-facing alternative to reading a specific assignment by `orderId`.
+
+```bash
+TOKEN="<paste DRIVER JWT>"
+curl -s -o /dev/null -w "%{http_code}\n" \
+  localhost:3004/v1/dispatch/offers/current \
+  -H "authorization: Bearer $TOKEN"      # 204 (no offer) or 200 (offer pending)
+```
+
 curl example for step 3:
 
 ```bash

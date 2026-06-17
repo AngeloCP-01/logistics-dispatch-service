@@ -25,6 +25,7 @@ import { UpdateAvailabilityUseCase } from "./application/dispatch/update-availab
 import { ForceAssignUseCase } from "./application/dispatch/force-assign.use-case.js";
 import { GetAssignmentUseCase } from "./application/dispatch/get-assignment.use-case.js";
 import { ListAvailableDriversUseCase } from "./application/dispatch/list-available-drivers.use-case.js";
+import { GetCurrentOfferUseCase } from "./application/dispatch/get-current-offer.use-case.js";
 import { AssignmentController } from "./interfaces/http/controllers/assignment-controller.js";
 import { HealthController } from "./interfaces/http/controllers/health-controller.js";
 import { startDispatchEventsConsumer } from "./interfaces/events/dispatch-events-consumer.js";
@@ -124,6 +125,7 @@ async function main(): Promise<void> {
   const forceAssign = new ForceAssignUseCase(assignmentsRepo, pool, directory, publisher, clock);
   const getAssignment = new GetAssignmentUseCase(assignmentsRepo);
   const listAvailable = new ListAvailableDriversUseCase(pool, directory);
+  const getCurrentOffer = new GetCurrentOfferUseCase(assignmentsRepo);
 
   let activeChannel: typeof channel | null = channel;
   channel.on("close", () => {
@@ -131,7 +133,7 @@ async function main(): Promise<void> {
   });
   let shuttingDown = false;
 
-  const controller = new AssignmentController(acceptOffer, rejectOffer, forceAssign, getAssignment, listAvailable);
+  const controller = new AssignmentController(acceptOffer, rejectOffer, forceAssign, getAssignment, listAvailable, getCurrentOffer);
   const health = new HealthController(prisma, () => activeChannel, () => shuttingDown, redis);
   const userJwt = new UserJwtVerifier(env.JWT_SECRET);
 

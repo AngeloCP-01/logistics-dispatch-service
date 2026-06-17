@@ -30,6 +30,7 @@ model Assignment {
   status           AssignmentStatus
   pickup           Json
   dropoff          Json
+  items            Json             @default("[]")
   scheduledFor     DateTime?        @map("scheduled_for") @db.Timestamptz(6)
   assignedDriverId String?          @map("assigned_driver_id") @db.Uuid
   offerAttempts    Int              @default(0) @map("offer_attempts")

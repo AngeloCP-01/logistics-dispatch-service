@@ -15,6 +15,7 @@ const input = () => ({
   orderId: OID, customerId: "c1",
   pickup: { street: "1", city: "M", country: "PH", lat: 1, lng: 1 },
   dropoff: { street: "2", city: "M", country: "PH", lat: 2, lng: 2 },
+  items: [],
   scheduledFor: null,
 });
 
@@ -49,5 +50,24 @@ describe("HandleOrderCreatedUseCase", () => {
     expect(processed.seen.size).toBe(1);
     expect(scheduler.scheduled).toHaveLength(0);
     expect((await assignments.byId(OrderId.of(OID)))!.createdAt).toEqual(before!.createdAt);
+  });
+
+  it("projects order.created items onto the saved assignment", async () => {
+    const { assignments, sut } = build();
+    await sut.execute(
+      {
+        eventId: "018f4e1a-00ee-7c3d-8e4f-5a6b7c8d9e0f",
+        orderId: "018f4e1a-00aa-7c3d-8e4f-5a6b7c8d9e0f",
+        customerId: "018f4e1a-00bb-7c3d-8e4f-5a6b7c8d9e0f",
+        pickup: { street: "1 Main", city: "Manila", country: "PH", lat: 14.6, lng: 121.0 },
+        dropoff: { street: "2 Main", city: "Manila", country: "PH", lat: 14.7, lng: 121.1 },
+        items: [{ description: "box", quantity: 3 }],
+        scheduledFor: null,
+      },
+      "corr-items",
+    );
+
+    const saved = assignments.store.get("018f4e1a-00aa-7c3d-8e4f-5a6b7c8d9e0f")!;
+    expect(saved.items.map((i) => i.toJSON())).toEqual([{ description: "box", quantity: 3, weightKg: null }]);
   });
 });

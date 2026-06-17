@@ -22,7 +22,7 @@ async function offered() {
   const pool = new FakeDriverPool();
   const events = new FakeEventPublisher();
   const dispatch = new DispatchOrderUseCase(assignments, pool, new FakeOfferScheduler(), events, new FixedClock(NOW), () => "att", 3, 30);
-  const a = Assignment.fromOrderCreated({ orderId: OrderId.of(OID), customerId: "c1", pickup: addr(1), dropoff: addr(2), scheduledFor: null }, NOW);
+  const a = Assignment.fromOrderCreated({ orderId: OrderId.of(OID), customerId: "c1", pickup: addr(1), dropoff: addr(2), items: [], scheduledFor: null }, NOW);
   a.offerTo("att-1", DriverId.of(D1), NOW, new Date(NOW.getTime() + 30000));
   await assignments.save(a);
   await pool.markBusy(DriverId.of(D1));

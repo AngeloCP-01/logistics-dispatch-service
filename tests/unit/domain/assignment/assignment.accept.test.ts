@@ -13,7 +13,7 @@ const a0 = () => Assignment.fromOrderCreated(
   { orderId: OrderId.of("018f4e1a-1c2b-7c3d-8e4f-5a6b7c8d9e0f"), customerId: "c1",
     pickup: AddressSnapshot.of({ street: "1", city: "M", country: "PH", lat: 1, lng: 1 }),
     dropoff: AddressSnapshot.of({ street: "2", city: "M", country: "PH", lat: 2, lng: 2 }),
-    scheduledFor: null }, NOW);
+    items: [], scheduledFor: null }, NOW);
 
 describe("Assignment.accept", () => {
   it("assigns to the offered driver and emits DriverAssigned", () => {
