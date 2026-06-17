@@ -14,6 +14,12 @@ import type { DriverDirectory, DriverInfo } from "@/application/ports/driver-dir
 export class FakeAssignmentRepository implements AssignmentRepository {
   readonly store = new Map<string, Assignment>();
   async byId(orderId: OrderId): Promise<Assignment | null> { return this.store.get(orderId) ?? null; }
+  async offeredForDriver(driverId: DriverId): Promise<Assignment | null> {
+    for (const a of this.store.values()) {
+      if (a.status === AssignmentStatus.OFFERED && a.currentAttempt()?.driverId === driverId) return a;
+    }
+    return null;
+  }
   async save(a: Assignment): Promise<void> { this.store.set(a.orderId, a); }
   async awaitingDriverOldestFirst(limit: number): Promise<Assignment[]> {
     return [...this.store.values()]

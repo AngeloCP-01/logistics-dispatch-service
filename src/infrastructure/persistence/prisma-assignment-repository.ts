@@ -2,8 +2,9 @@ import type { PrismaClient, Prisma } from "@prisma/client";
 import { AssignmentMapper } from "./assignment-mapper.js";
 import type { Assignment } from "../../domain/assignment/assignment.js";
 import { AssignmentStatus } from "../../domain/assignment/assignment-status.js";
+import { OfferOutcome } from "../../domain/assignment/offer-outcome.js";
 import type { AssignmentRepository } from "../../domain/assignment/assignment-repository.js";
-import type { OrderId } from "../../domain/shared/ids.js";
+import type { OrderId, DriverId } from "../../domain/shared/ids.js";
 
 type Tx = PrismaClient | Prisma.TransactionClient;
 
@@ -12,6 +13,17 @@ export class PrismaAssignmentRepository implements AssignmentRepository {
 
   async byId(orderId: OrderId): Promise<Assignment | null> {
     const row = await this.db.assignment.findUnique({ where: { orderId }, include: { attempts: true } });
+    return row ? AssignmentMapper.toDomain(row) : null;
+  }
+
+  async offeredForDriver(driverId: DriverId): Promise<Assignment | null> {
+    const row = await this.db.assignment.findFirst({
+      where: {
+        status: AssignmentStatus.OFFERED,
+        attempts: { some: { driverId, outcome: OfferOutcome.OFFERED } },
+      },
+      include: { attempts: true },
+    });
     return row ? AssignmentMapper.toDomain(row) : null;
   }
 
