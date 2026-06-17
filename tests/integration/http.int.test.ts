@@ -143,3 +143,54 @@ describe("HTTP authz", () => {
     expect(res.body.orderId).toBe(orderId);
   });
 });
+
+describe("GET /v1/dispatch/offers/current", () => {
+  it("returns the driver's current offer with the order summary (200)", async () => {
+    const orderId = uuidV7();
+    await offerToD1(orderId);
+
+    const res = await request(fx.baseUrl)
+      .get(`/v1/dispatch/offers/current`)
+      .set("Authorization", `Bearer ${fx.signUserJwt(D1, "driver")}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.orderId).toBe(orderId);
+    expect(typeof res.body.expiresAt).toBe("string");
+    expect(res.body.order.pickup.street).toBe("1 Main");
+    expect(res.body.order.items).toEqual([{ description: "box", quantity: 1, weightKg: null }]);
+  });
+
+  it("returns 204 for a driver with no outstanding offer", async () => {
+    const orderId = uuidV7();
+    await offerToD1(orderId); // offer is held by D1, not D2
+
+    const res = await request(fx.baseUrl)
+      .get(`/v1/dispatch/offers/current`)
+      .set("Authorization", `Bearer ${fx.signUserJwt(D2, "driver")}`);
+
+    expect(res.status).toBe(204);
+  });
+
+  it("rejects a non-driver caller (403, role guard)", async () => {
+    const res = await request(fx.baseUrl)
+      .get(`/v1/dispatch/offers/current`)
+      .set("Authorization", `Bearer ${fx.signUserJwt(uuidV7(), "customer")}`);
+
+    expect(res.status).toBe(403);
+  });
+});
+
+describe("GET /v1/dispatch/assignments/:orderId order summary", () => {
+  it("includes the order summary for the admin reader", async () => {
+    const orderId = uuidV7();
+    await offerToD1(orderId);
+
+    const res = await request(fx.baseUrl)
+      .get(`/v1/dispatch/assignments/${orderId}`)
+      .set("Authorization", `Bearer ${adminJwt()}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.order.dropoff.street).toBe("1 Main");
+    expect(res.body.order.items).toHaveLength(1);
+  });
+});
