@@ -4,9 +4,10 @@ import type { RejectOfferUseCase } from "../../../application/dispatch/reject-of
 import type { ForceAssignUseCase } from "../../../application/dispatch/force-assign.use-case.js";
 import type { GetAssignmentUseCase } from "../../../application/dispatch/get-assignment.use-case.js";
 import type { ListAvailableDriversUseCase } from "../../../application/dispatch/list-available-drivers.use-case.js";
+import type { GetCurrentOfferUseCase } from "../../../application/dispatch/get-current-offer.use-case.js";
 import { ForbiddenError } from "../../../domain/shared/errors.js";
 import { forceAssignBody, rejectBody, orderIdParam } from "../schemas.js";
-import { toAssignmentResponse } from "../response-mappers.js";
+import { toAssignmentResponse, toCurrentOfferResponse } from "../response-mappers.js";
 
 const wrap =
   (fn: (req: Request, res: Response) => Promise<void>) =>
@@ -21,6 +22,7 @@ export class AssignmentController {
     private readonly force: ForceAssignUseCase,
     private readonly get: GetAssignmentUseCase,
     private readonly listAvailable: ListAvailableDriversUseCase,
+    private readonly getCurrentOffer: GetCurrentOfferUseCase,
   ) {}
 
   acceptHandler = wrap(async (req, res) => {
@@ -58,6 +60,15 @@ export class AssignmentController {
       throw new ForbiddenError();
     }
     res.status(200).json(toAssignmentResponse(a));
+  });
+
+  currentOfferHandler = wrap(async (req, res) => {
+    const offer = await this.getCurrentOffer.execute(req.userId!);
+    if (!offer) {
+      res.status(204).end();
+      return;
+    }
+    res.status(200).json(toCurrentOfferResponse(offer));
   });
 
   listAvailableHandler = wrap(async (_req, res) => {
