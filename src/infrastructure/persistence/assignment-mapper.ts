@@ -2,6 +2,7 @@ import type { Assignment as PrismaAssignment, AssignmentAttempt as PrismaAttempt
 import { Assignment, type OfferAttempt } from "../../domain/assignment/assignment.js";
 import { OrderId, DriverId } from "../../domain/shared/ids.js";
 import { AddressSnapshot } from "../../domain/shared/address-snapshot.js";
+import { OrderItemLine } from "../../domain/shared/order-item-line.js";
 import type { AssignmentStatus } from "../../domain/assignment/assignment-status.js";
 import type { OfferOutcome } from "../../domain/assignment/offer-outcome.js";
 
@@ -20,6 +21,13 @@ export const AssignmentMapper = {
       customerId: row.customerId,
       pickup: AddressSnapshot.of(row.pickup as Record<string, unknown> as never),
       dropoff: AddressSnapshot.of(row.dropoff as Record<string, unknown> as never),
+      items: ((row.items as Array<Record<string, unknown>>) ?? []).map((i) =>
+        OrderItemLine.of({
+          description: String(i.description),
+          quantity: Number(i.quantity),
+          weightKg: i.weightKg === null || i.weightKg === undefined ? null : Number(i.weightKg),
+        }),
+      ),
       scheduledFor: row.scheduledFor,
       status: row.status as AssignmentStatus,
       assignedDriverId: row.assignedDriverId ? DriverId.of(row.assignedDriverId) : null,
@@ -33,6 +41,7 @@ export const AssignmentMapper = {
     return {
       orderId: a.orderId, customerId: a.customerId, status: a.status,
       pickup: a.pickup.toJSON() as Prisma.InputJsonValue, dropoff: a.dropoff.toJSON() as Prisma.InputJsonValue,
+      items: a.items.map((i) => i.toJSON()) as unknown as Prisma.InputJsonValue,
       scheduledFor: a.scheduledFor, assignedDriverId: a.assignedDriverId,
       offerAttempts: a.offerAttempts, createdAt: a.createdAt, updatedAt: a.updatedAt,
     };

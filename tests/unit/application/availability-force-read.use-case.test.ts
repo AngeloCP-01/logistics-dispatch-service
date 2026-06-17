@@ -34,7 +34,7 @@ function build() {
 
 function parkedOrder() {
   return Assignment.fromOrderCreated(
-    { orderId: OrderId.of(OID), customerId: "c1", pickup: addr(1), dropoff: addr(2), scheduledFor: null }, NOW);
+    { orderId: OrderId.of(OID), customerId: "c1", pickup: addr(1), dropoff: addr(2), items: [], scheduledFor: null }, NOW);
 }
 
 describe("UpdateAvailabilityUseCase", () => {

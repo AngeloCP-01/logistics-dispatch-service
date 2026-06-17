@@ -5,6 +5,7 @@ import { AssignmentStatus } from "@/domain/assignment/assignment-status.js";
 import { OfferOutcome } from "@/domain/assignment/offer-outcome.js";
 import { OrderId, DriverId } from "@/domain/shared/ids.js";
 import { AddressSnapshot } from "@/domain/shared/address-snapshot.js";
+import { OrderItemLine } from "@/domain/shared/order-item-line.js";
 
 const ORDER_ID = "018f4e1a-1c2b-7c3d-8e4f-5a6b7c8d9e0f";
 const CUSTOMER_ID = "018f4e1a-2c2b-7c3d-8e4f-5a6b7c8d9e0f";
@@ -20,6 +21,7 @@ function domainWithOneOffer(): Assignment {
       customerId: CUSTOMER_ID,
       pickup: AddressSnapshot.of({ label: "home", street: "1 Main", city: "Manila", country: "PH", lat: 14.6, lng: 120.98 }),
       dropoff: AddressSnapshot.of({ street: "2 Side", city: "Cebu", country: "PH", lat: 10.3, lng: 123.9 }),
+      items: [],
       scheduledFor: null,
     },
     NOW,
@@ -83,5 +85,25 @@ describe("AssignmentMapper round-trip", () => {
 
     expect(back.pickup.toJSON()).toEqual(original.pickup.toJSON());
     expect(back.dropoff.toJSON()).toEqual(original.dropoff.toJSON());
+  });
+
+  it("round-trips items through persistence and back", () => {
+    const a = Assignment.fromOrderCreated(
+      {
+        orderId: OrderId.of("018f4e1a-0fff-7c3d-8e4f-5a6b7c8d9e0f"),
+        customerId: "018f4e1a-0ccc-7c3d-8e4f-5a6b7c8d9e0f",
+        pickup: AddressSnapshot.of({ street: "1 Main", city: "Manila", country: "PH", lat: 14.6, lng: 121.0 }),
+        dropoff: AddressSnapshot.of({ street: "2 Main", city: "Manila", country: "PH", lat: 14.7, lng: 121.1 }),
+        items: [OrderItemLine.of({ description: "box", quantity: 2, weightKg: 1.5 })],
+        scheduledFor: null,
+      },
+      new Date("2026-06-16T12:00:00.000Z"),
+    );
+
+    const persisted = AssignmentMapper.toPersistence(a);
+    expect(persisted.items).toEqual([{ description: "box", quantity: 2, weightKg: 1.5 }]);
+
+    const back = AssignmentMapper.toDomain({ ...(persisted as Record<string, unknown>), attempts: [] } as never);
+    expect(back.items.map((i) => i.toJSON())).toEqual([{ description: "box", quantity: 2, weightKg: 1.5 }]);
   });
 });

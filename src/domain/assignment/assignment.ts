@@ -1,5 +1,6 @@
 import type { OrderId, DriverId } from "../shared/ids.js";
 import type { AddressSnapshot } from "../shared/address-snapshot.js";
+import type { OrderItemLine } from "../shared/order-item-line.js";
 import { AssignmentStatus, isTerminal } from "./assignment-status.js";
 import { OfferOutcome } from "./offer-outcome.js";
 import type { DomainEvent } from "../events/index.js";
@@ -21,6 +22,7 @@ export interface AssignmentProps {
   customerId: string;
   pickup: AddressSnapshot;
   dropoff: AddressSnapshot;
+  items: readonly OrderItemLine[];
   scheduledFor: Date | null;
   status: AssignmentStatus;
   assignedDriverId: DriverId | null;
@@ -35,6 +37,7 @@ export interface OrderCreatedInput {
   customerId: string;
   pickup: AddressSnapshot;
   dropoff: AddressSnapshot;
+  items: readonly OrderItemLine[];
   scheduledFor: Date | null;
 }
 
@@ -48,6 +51,7 @@ export class Assignment {
       customerId: input.customerId,
       pickup: input.pickup,
       dropoff: input.dropoff,
+      items: input.items,
       scheduledFor: input.scheduledFor,
       status: AssignmentStatus.AWAITING_DRIVER,
       assignedDriverId: null,
@@ -59,13 +63,14 @@ export class Assignment {
   }
 
   static fromPersistence(props: AssignmentProps): Assignment {
-    return new Assignment({ ...props, attempts: [...props.attempts] });
+    return new Assignment({ ...props, items: [...props.items], attempts: [...props.attempts] });
   }
 
   get orderId(): OrderId { return this.props.orderId; }
   get customerId(): string { return this.props.customerId; }
   get pickup(): AddressSnapshot { return this.props.pickup; }
   get dropoff(): AddressSnapshot { return this.props.dropoff; }
+  get items(): readonly OrderItemLine[] { return this.props.items; }
   get scheduledFor(): Date | null { return this.props.scheduledFor; }
   get status(): AssignmentStatus { return this.props.status; }
   get assignedDriverId(): DriverId | null { return this.props.assignedDriverId; }
