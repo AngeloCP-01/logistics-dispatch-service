@@ -29,6 +29,7 @@ Consumes `order.created`, picks the longest-waiting available driver from a FIFO
   - `POST /v1/dispatch/assignments/{orderId}/accept` (driver)
   - `POST /v1/dispatch/assignments/{orderId}/reject` (driver)
   - `POST /v1/dispatch/assignments/{orderId}/force-assign` (admin)
+  - `GET /v1/dispatch/offers/current` (driver — the caller's current outstanding offer; `204` if none)
   - `GET /v1/dispatch/drivers/available` (admin)
   - `GET /healthz` (liveness) + `GET /readyz` (Postgres + RabbitMQ channel + Redis ping)
 
@@ -38,7 +39,7 @@ Standard layered Node/TS service (`domain → application → infrastructure →
 
 ## Database (Neon Postgres, Prisma)
 
-- `assignments` — `order_id` (PK, uuid), `customer_id`, `status` (`awaiting_driver|offered|assigned|completed|cancelled|failed`), `pickup`/`dropoff` (Json snapshots), `scheduled_for?`, `assigned_driver_id?`, `offer_attempts`, `created_at`, `updated_at`.
+- `assignments` — `order_id` (PK, uuid), `customer_id`, `status` (`awaiting_driver|offered|assigned|completed|cancelled|failed`), `pickup`/`dropoff` (Json snapshots), `items` (Json — order line-items snapshot, projected from `order.created`), `scheduled_for?`, `assigned_driver_id?`, `offer_attempts`, `created_at`, `updated_at`.
 - `assignment_attempts` — `id` (uuid), `order_id` (FK, cascade), `driver_id`, `attempt_no`, `outcome` (`offered|accepted|rejected|expired`), `offered_at`, `responded_at?`, `expires_at`.
 - `processed_events` — `event_id` (PK, uuid), `event_type`, `processed_at` (consumer idempotency; check+side-effect+record in one tx).
 

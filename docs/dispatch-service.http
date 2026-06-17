@@ -136,6 +136,11 @@ GET {{host}}/readyz
 # Read the assignment
 ############################################################
 
+### Current offer for the authenticated driver
+# 204 = no outstanding offer; 200 = { orderId, offerAttempts, expiresAt, order: { pickup, dropoff, items } }
+GET {{host}}/v1/dispatch/offers/current
+Authorization: Bearer {{driverToken}}
+
 ### Admin reads any assignment by orderId
 GET {{host}}/v1/dispatch/assignments/{{orderId}}
 Authorization: Bearer {{adminToken}}
