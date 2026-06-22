@@ -104,3 +104,5 @@ Unit tests use in-memory fakes; integration tests exercise the real wired app + 
 ## Architecture
 
 Clean Architecture: `src/{domain,application,infrastructure,interfaces,config}` + `server.ts` (composition root, with attributed boot errors). Dependencies point inward; `infrastructure` implements the ports declared in `domain`/`application`. The `Assignment` aggregate owns the state machine; Redis/RabbitMQ/Prisma/HTTP are adapters behind ports.
+
+> Part of the [AI Logistics & Delivery Management Platform](https://github.com/AngeloCP-01/logistics-web#readme) — see the web repo for the full architecture overview.
